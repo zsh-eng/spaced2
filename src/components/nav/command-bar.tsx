@@ -28,6 +28,7 @@ import {
   Pencil,
   Plus,
   Trash,
+  Upload,
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -244,6 +245,12 @@ export default function CommandBar() {
               path="/profile"
               icon={<UserRound className="h-4 w-4" />}
               label="Profile"
+              onSelect={() => setOpen(false)}
+            />
+            <NavPathCommandItem
+              path="/import"
+              icon={<Upload className="h-4 w-4" />}
+              label="Import"
               onSelect={() => setOpen(false)}
             />
           </CommandGroup>

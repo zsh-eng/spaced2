@@ -284,6 +284,8 @@ export async function createNewCard(
   await db.operations.bulkAdd(operations);
   await db.pendingOperations.bulkAdd(operationsCopy);
   MemoryDB.notify();
+
+  return card.id;
 }
 
 export async function updateCardContentOperation(
@@ -730,7 +732,7 @@ export async function updateDeletedClientSide(
     },
     timestamp: Date.now(),
   };
-  handleClientOperationWithPersistence(cardOperation);
+  await handleClientOperationWithPersistence(cardOperation);
 }
 
 export async function updateSuspendedClientSide(
@@ -750,7 +752,7 @@ export async function updateSuspendedClientSide(
     },
     timestamp: Date.now(),
   };
-  handleClientOperationWithPersistence(cardOperation);
+  await handleClientOperationWithPersistence(cardOperation);
 }
 
 export async function updateBookmarkedClientSide(
@@ -770,7 +772,7 @@ export async function updateBookmarkedClientSide(
     },
     timestamp: Date.now(),
   };
-  handleClientOperationWithPersistence(cardOperation);
+  await handleClientOperationWithPersistence(cardOperation);
 }
 
 export async function applyOperations(operations: Operation[]) {
