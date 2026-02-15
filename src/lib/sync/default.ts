@@ -15,6 +15,7 @@ export const defaultCard: Omit<CardWithMetadata, "id"> = {
   cardDeletedLastModified: 0,
   cardBookmarkedLastModified: 0,
   cardSuspendedLastModified: 0,
+  cardMetadataLastModified: 0,
 
   createdAt: 0,
 };

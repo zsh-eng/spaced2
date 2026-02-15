@@ -4,7 +4,8 @@ export type CompilerDiagnosticCode =
   | "MISSING_DELIMITER"
   | "ASSET_NOT_FOUND"
   | "AMBIGUOUS_WIKI_LINK"
-  | "NO_CARDS_FOUND";
+  | "NO_CARDS_FOUND"
+  | "EMPTY_CLOZE";
 
 export type CompilerDiagnostic = {
   code: CompilerDiagnosticCode;
@@ -12,6 +13,12 @@ export type CompilerDiagnostic = {
   file: string;
   line: number;
   severity: "error" | "warning";
+};
+
+export type CardOrigin = {
+  noteId: string;
+  noteType: "basic" | "reverse" | "cloze";
+  variantKey: string;
 };
 
 export type ParsedCardBlock = {
@@ -22,6 +29,7 @@ export type ParsedCardBlock = {
     lineStart: number;
     lineEnd: number;
   };
+  origin?: CardOrigin;
 };
 
 function isQuestionMarker(line: string) {
@@ -44,8 +52,81 @@ function lineWithoutMarker(line: string, markerLength: number) {
   return rest;
 }
 
+function isReverseMarker(line: string) {
+  return line.trim() === "@reverse";
+}
+
 function unescapeMarkers(text: string) {
   return text.replace(/^\\(Q:|A:|===)/gm, "$1");
+}
+
+// --- Cloze parsing and expansion ---
+
+export type ClozeMatch = {
+  fullMatch: string;
+  index: number;
+  answer: string;
+  hint?: string;
+};
+
+const CLOZE_PATTERN = /\{\{c(\d+)::([^:}]+?)(?:::([^}]+?))?\}\}/g;
+
+export function parseClozeMarkers(text: string): ClozeMatch[] {
+  const matches: ClozeMatch[] = [];
+  for (const match of text.matchAll(CLOZE_PATTERN)) {
+    matches.push({
+      fullMatch: match[0],
+      index: parseInt(match[1], 10),
+      answer: match[2],
+      hint: match[3],
+    });
+  }
+  return matches;
+}
+
+/**
+ * Returns the unique cloze indices found in the text, sorted ascending.
+ */
+export function getClozeIndices(text: string): number[] {
+  const matches = parseClozeMarkers(text);
+  const indices = [...new Set(matches.map((m) => m.index))];
+  return indices.sort((a, b) => a - b);
+}
+
+/**
+ * Expands cloze text for a specific active index.
+ *
+ * - Active cloze (matching activeIndex): replaced with [...] or [hint] on front,
+ *   shown as **answer** (bold) on back
+ * - Inactive clozes: markers stripped, answer text shown normally on both sides
+ */
+export function expandClozeText(
+  text: string,
+  activeIndex: number,
+): { front: string; back: string } {
+  const front = text.replace(
+    CLOZE_PATTERN,
+    (_match, indexStr: string, answer: string, hint?: string) => {
+      const idx = parseInt(indexStr, 10);
+      if (idx === activeIndex) {
+        return hint ? `[hint: ${hint}]` : "[...]";
+      }
+      return answer;
+    },
+  );
+
+  const back = text.replace(
+    CLOZE_PATTERN,
+    (_match, indexStr: string, answer: string) => {
+      const idx = parseInt(indexStr, 10);
+      if (idx === activeIndex) {
+        return `**${answer}**`;
+      }
+      return answer;
+    },
+  );
+
+  return { front, back };
 }
 
 export function parseFlashcardBlocks(
@@ -61,12 +142,24 @@ export function parseFlashcardBlocks(
 
   let i = 0;
   while (i < lines.length) {
+    // Check for @reverse modifier on the line before Q:
+    let hasReverse = false;
+    if (isReverseMarker(lines[i])) {
+      if (i + 1 < lines.length && isQuestionMarker(lines[i + 1])) {
+        hasReverse = true;
+        i++; // skip @reverse line, next iteration handles Q:
+      } else {
+        i++;
+        continue;
+      }
+    }
+
     if (!isQuestionMarker(lines[i])) {
       i++;
       continue;
     }
 
-    const lineStart = i + 1;
+    const lineStart = hasReverse ? i : i + 1; // 1-based; include @reverse line in source range
     const frontLines = [lineWithoutMarker(lines[i], 2)];
     i++;
 
@@ -145,15 +238,69 @@ export function parseFlashcardBlocks(
       continue;
     }
 
-    cards.push({
-      front,
-      back,
-      source: {
-        file: sourceFile,
-        lineStart,
-        lineEnd,
-      },
-    });
+    const source = { file: sourceFile, lineStart, lineEnd };
+    const noteId = crypto.randomUUID();
+
+    // Check for cloze markers in the front text
+    const clozeIndices = getClozeIndices(front);
+
+    if (clozeIndices.length > 0) {
+      // Cloze card: expand into one card per cloze index
+      for (const clozeIdx of clozeIndices) {
+        const expanded = expandClozeText(front, clozeIdx);
+
+        if (!expanded.front.trim()) {
+          diagnostics.push({
+            code: "EMPTY_CLOZE",
+            message: `Cloze c${clozeIdx} produces empty front content.`,
+            file: sourceFile,
+            line: lineStart,
+            severity: "error",
+          });
+          continue;
+        }
+
+        // Back side: show the Q text with cloze answer revealed (bolded),
+        // followed by the A: text if present
+        const expandedBack = expandClozeText(back, clozeIdx);
+        const cardBack = back.trim()
+          ? `${expanded.back}\n\n${expandedBack.back}`
+          : expanded.back;
+
+        cards.push({
+          front: expanded.front,
+          back: cardBack,
+          source,
+          origin: {
+            noteId,
+            noteType: "cloze",
+            variantKey: `c${clozeIdx}`,
+          },
+        });
+      }
+    } else if (hasReverse) {
+      // Reverse card: produce forward + reverse
+      cards.push({
+        front,
+        back,
+        source,
+        origin: { noteId, noteType: "reverse", variantKey: "forward" },
+      });
+      cards.push({
+        front: back,
+        back: front,
+        source,
+        origin: { noteId, noteType: "reverse", variantKey: "reverse" },
+      });
+    } else {
+      // Basic card
+      cards.push({
+        front,
+        back,
+        source,
+        origin: { noteId, noteType: "basic", variantKey: "basic" },
+      });
+    }
   }
 
   if (cards.length === 0) {

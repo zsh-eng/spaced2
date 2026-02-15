@@ -21,11 +21,18 @@ export const bundleCardSourceSchema = z.object({
   lineEnd: z.number().int().positive(),
 });
 
+export const bundleCardOriginSchema = z.object({
+  noteId: z.string(),
+  noteType: z.enum(["basic", "reverse", "cloze"]),
+  variantKey: z.string(),
+});
+
 export const bundleCardSchema = z.object({
   front: z.string().min(1),
   back: z.string().min(1),
   assets: z.array(bundleAssetSchema),
   source: bundleCardSourceSchema,
+  origin: bundleCardOriginSchema.optional(),
 });
 
 export const bundleSourceSchema = z.object({

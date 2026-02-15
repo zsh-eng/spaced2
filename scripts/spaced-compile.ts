@@ -495,12 +495,16 @@ async function main() {
 
       diagnostics.push(...frontResult.diagnostics, ...backResult.diagnostics);
 
-      cards.push({
+      const bundleCard: BundleCard = {
         front: frontResult.rewritten,
         back: backResult.rewritten,
         assets: [...frontResult.assets, ...backResult.assets],
         source: parsedCard.source,
-      });
+      };
+      if (parsedCard.origin) {
+        bundleCard.origin = parsedCard.origin;
+      }
+      cards.push(bundleCard);
     }
   }
 

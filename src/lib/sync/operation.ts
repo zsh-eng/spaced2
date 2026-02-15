@@ -132,6 +132,22 @@ export type CardSuspendedOperation = z.infer<
   typeof cardSuspendedOperationSchema
 >;
 
+export const cardMetadataOperationSchema = z
+  .object({
+    type: z.literal("cardMetadata"),
+    payload: z.object({
+      cardId: z.string(),
+      noteId: z.string(),
+      siblingTag: z.string(),
+    }),
+    timestamp: z.number(),
+  })
+  .passthrough();
+
+export type CardMetadataOperation = z.infer<
+  typeof cardMetadataOperationSchema
+>;
+
 export const deckOperationSchema = z
   .object({
     type: z.literal("deck"),
@@ -169,6 +185,7 @@ export const operationSchema = z.union([
   cardDeletedOperationSchema,
   cardBookmarkedOperationSchema,
   cardSuspendedOperationSchema,
+  cardMetadataOperationSchema,
   deckOperationSchema,
   updateDeckCardOperationSchema,
   reviewLogOperationSchema,
@@ -191,6 +208,7 @@ export const server2ClientSyncSchema = z.object({
       cardDeletedOperationSchema.extend({ seqNo: z.number() }),
       cardBookmarkedOperationSchema.extend({ seqNo: z.number() }),
       cardSuspendedOperationSchema.extend({ seqNo: z.number() }),
+      cardMetadataOperationSchema.extend({ seqNo: z.number() }),
       deckOperationSchema.extend({ seqNo: z.number() }),
       updateDeckCardOperationSchema.extend({ seqNo: z.number() }),
       reviewLogOperationSchema.extend({ seqNo: z.number() }),
@@ -254,6 +272,7 @@ export async function createNewCard(
   front: string,
   back: string,
   decks: string[] = [],
+  metadata?: { noteId: string; siblingTag: string },
 ) {
   const card: CardWithMetadata = {
     ...createEmptyCard(),
@@ -269,7 +288,20 @@ export async function createNewCard(
 
   const cardOperations = emptyCardToOperations(card);
   const deckOperations = cardDeckOperations(card.id, decks);
-  const operations = [...cardOperations, ...deckOperations];
+  const operations: Operation[] = [...cardOperations, ...deckOperations];
+
+  if (metadata) {
+    const metadataOp: CardMetadataOperation = {
+      type: "cardMetadata",
+      payload: {
+        cardId: card.id,
+        noteId: metadata.noteId,
+        siblingTag: metadata.siblingTag,
+      },
+      timestamp: Date.now(),
+    };
+    operations.push(metadataOp);
+  }
 
   for (const operation of operations) {
     const result = handleClientOperation(operation);
@@ -357,14 +389,42 @@ export async function gradeCardOperation(
   };
   MemoryDB.pushUndoGrade(undo);
 
-  const operationsCopy = [
-    structuredClone(cardOperation),
-    structuredClone(reviewLogOperation),
+  // Bury sibling cards (same noteId) until tomorrow
+  const siblingBuryOps: CardSuspendedOperation[] = [];
+  const siblingIds = MemoryDB.getSiblingCardIds(card.id);
+  if (siblingIds.length > 0) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    for (const siblingId of siblingIds) {
+      const sibling = MemoryDB.getCardById(siblingId);
+      if (!sibling || sibling.deleted) continue;
+      // Don't bury if already suspended past tomorrow (e.g. permanently buried)
+      if (sibling.suspended && sibling.suspended > tomorrow) continue;
+
+      const buryOp: CardSuspendedOperation = {
+        type: "cardSuspended",
+        payload: { cardId: siblingId, suspended: tomorrow },
+        timestamp: Date.now(),
+      };
+      handleCardSuspendedOperation(buryOp);
+      siblingBuryOps.push(buryOp);
+    }
+  }
+
+  const allOperations: Operation[] = [
+    cardOperation,
+    reviewLogOperation,
+    ...siblingBuryOps,
   ];
+  const operationsCopy = allOperations.map((op) => structuredClone(op));
 
   await db.operations.add(cardOperation);
   await db.reviewLogOperations.add(reviewLogOperation);
-  // On fe-dev, the "add" operation modifies to object
+  if (siblingBuryOps.length > 0) {
+    await db.operations.bulkAdd(siblingBuryOps);
+  }
   await db.pendingOperations.bulkAdd(operationsCopy);
   MemoryDB.notify();
 }
@@ -623,6 +683,37 @@ function handleCardSuspendedOperation(
   return { applied: true };
 }
 
+function handleCardMetadataOperation(
+  operation: CardMetadataOperation,
+): OperationResult {
+  const card = MemoryDB.getCardById(operation.payload.cardId);
+
+  if (!card) {
+    MemoryDB.putCard({
+      ...defaultCard,
+      id: operation.payload.cardId,
+      noteId: operation.payload.noteId,
+      siblingTag: operation.payload.siblingTag,
+      cardMetadataLastModified: operation.timestamp,
+    });
+    return { applied: true };
+  }
+
+  if (card.cardMetadataLastModified > operation.timestamp) {
+    return { applied: false };
+  }
+
+  const updatedCard = {
+    ...card,
+    noteId: operation.payload.noteId,
+    siblingTag: operation.payload.siblingTag,
+    cardMetadataLastModified: operation.timestamp,
+  };
+
+  MemoryDB.putCard(updatedCard);
+  return { applied: true };
+}
+
 function handleDeckOperation(operation: DeckOperation): OperationResult {
   const deck = MemoryDB.getDeckById(operation.payload.id);
 
@@ -687,6 +778,8 @@ export function handleClientOperation(operation: Operation): OperationResult {
       return handleCardBookmarkedOperation(operation);
     case "cardSuspended":
       return handleCardSuspendedOperation(operation);
+    case "cardMetadata":
+      return handleCardMetadataOperation(operation);
     case "deck":
       return handleDeckOperation(operation);
     case "updateDeckCard":

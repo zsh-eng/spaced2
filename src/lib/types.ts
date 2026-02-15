@@ -9,12 +9,17 @@ export type CardWithMetadata = Card & {
   bookmarked: boolean;
   suspended?: Date;
 
+  // Sibling grouping (for cloze/reverse cards from the same source note)
+  noteId?: string;
+  siblingTag?: string;
+
   // CRDT metadata
   cardLastModified: number;
   cardContentLastModified: number;
   cardDeletedLastModified: number;
   cardBookmarkedLastModified: number;
   cardSuspendedLastModified: number;
+  cardMetadataLastModified: number;
 
   createdAt: number;
 };

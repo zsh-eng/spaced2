@@ -16,6 +16,7 @@ type InternalMemoryDB = {
   cards: Record<string, CardWithMetadata>;
   decks: Record<string, Deck>;
   decksToCards: Record<string, Record<string, number>>;
+  noteIdToCardIds: Record<string, string[]>;
   operations: Record<string, OperationWithId>;
   metadataKv: Record<string, unknown>;
 
@@ -43,6 +44,7 @@ const memoryDb: InternalMemoryDB = {
   cards: {},
   decks: {},
   decksToCards: {},
+  noteIdToCardIds: {},
   operations: {},
   metadataKv: {},
   undoGradeStack: [],
@@ -83,6 +85,26 @@ function memoize<T extends (...args: never[]) => unknown>(fn: T) {
 }
 
 const putCard = (card: CardWithMetadata) => {
+  const existing = memoryDb.cards[card.id];
+
+  // Maintain noteIdToCardIds index
+  if (existing?.noteId && existing.noteId !== card.noteId) {
+    const oldList = memoryDb.noteIdToCardIds[existing.noteId];
+    if (oldList) {
+      memoryDb.noteIdToCardIds[existing.noteId] = oldList.filter(
+        (id) => id !== card.id,
+      );
+    }
+  }
+  if (card.noteId) {
+    const list = memoryDb.noteIdToCardIds[card.noteId];
+    if (!list) {
+      memoryDb.noteIdToCardIds[card.noteId] = [card.id];
+    } else if (!list.includes(card.id)) {
+      list.push(card.id);
+    }
+  }
+
   memoryDb.cards[card.id] = Object.assign({}, card);
 };
 
@@ -140,6 +162,16 @@ const getCardsForDeck = (deckId: string) => {
   return cards;
 };
 
+/**
+ * Returns IDs of sibling cards (cards sharing the same noteId), excluding the given card.
+ */
+const getSiblingCardIds = (cardId: string): string[] => {
+  const card = memoryDb.cards[cardId];
+  if (!card?.noteId) return [];
+  const siblings = memoryDb.noteIdToCardIds[card.noteId] ?? [];
+  return siblings.filter((id) => id !== cardId);
+};
+
 const pushUndoGrade = (undo: UndoGrade) => {
   memoryDb.undoGradeStack.push(undo);
 };
@@ -189,6 +221,7 @@ const MemoryDB = {
   getDeckById,
   getDecks,
   getCardsForDeck,
+  getSiblingCardIds,
   pushUndoGrade,
   popUndoGrade,
 };

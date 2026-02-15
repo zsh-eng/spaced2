@@ -265,6 +265,12 @@ export default function ImportRoute() {
             content.front,
             content.back,
             selectedDecks,
+            card.origin
+              ? {
+                  noteId: card.origin.noteId,
+                  siblingTag: card.origin.variantKey,
+                }
+              : undefined,
           );
           existingFingerprints.add(fingerprint);
           importedCardIds.push(cardId);
