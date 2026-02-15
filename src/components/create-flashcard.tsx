@@ -94,7 +94,7 @@ export function CreateUpdateFlashcardForm({
 
   const handleSubmit = useCallback(
     (data: CardContentFormValues) => {
-      navigator?.vibrate(VibrationPattern.successConfirm);
+      navigator?.vibrate?.(VibrationPattern.successConfirm);
 
       onSubmit(data);
       // Explicitly reset to empty instead of the default values (because they were fetched from localStorage)

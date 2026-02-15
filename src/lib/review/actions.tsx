@@ -23,7 +23,7 @@ export async function handleCardSuspend(reviewCard?: CardWithMetadata) {
   if (!reviewCard) return;
   const tenMinutesFromNow = new Date(Date.now() + 10 * 60 * 1000);
   await updateSuspendedClientSide(reviewCard.id, tenMinutesFromNow);
-  navigator?.vibrate(VibrationPattern.buttonTap);
+  navigator?.vibrate?.(VibrationPattern.buttonTap);
   toast("Skipped for 10 minutes", {
     icon: <ChevronsRight className="size-4" />,
   });
@@ -32,7 +32,7 @@ export async function handleCardSuspend(reviewCard?: CardWithMetadata) {
 export async function handleCardBury(reviewCard?: CardWithMetadata) {
   if (!reviewCard) return;
   await updateSuspendedClientSide(reviewCard.id, MAX_DATE);
-  navigator?.vibrate(VibrationPattern.buttonTap);
+  navigator?.vibrate?.(VibrationPattern.buttonTap);
   toast("You won't see this card again", {
     icon: <EyeOff className="size-4" />,
   });
@@ -53,7 +53,7 @@ export async function handleCardSave(
   if (!reviewCard) return;
   await updateBookmarkedClientSide(reviewCard.id, bookmarked);
   if (bookmarked) {
-    navigator?.vibrate(VibrationPattern.successConfirm);
+    navigator?.vibrate?.(VibrationPattern.successConfirm);
     toast("Saved", {
       icon: (
         <BookmarkIcon className="size-4 text-primary" fill="currentColor" />

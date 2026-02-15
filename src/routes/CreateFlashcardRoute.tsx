@@ -216,7 +216,7 @@ export default function CreateFlashcardRoute() {
                 backgroundType={selected ? "cool-mint" : "plain"}
                 selected={selected}
                 onSelect={() => {
-                  navigator?.vibrate(VibrationPattern.buttonTap);
+                  navigator?.vibrate?.(VibrationPattern.buttonTap);
                   if (selected) {
                     setSelectedDecks(
                       selectedDecks.filter((id) => id !== deck.id),

@@ -32,7 +32,7 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
   });
 
   const handleSubmit = async (data: RegisterFormValues) => {
-    navigator?.vibrate(VibrationPattern.successConfirm);
+    navigator?.vibrate?.(VibrationPattern.successConfirm);
     await onSubmit(data);
   };
 

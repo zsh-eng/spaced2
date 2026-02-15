@@ -21,7 +21,7 @@ export default function NavButton({
       <Button
         onMouseDown={() => {
           setPressed(true);
-          navigator?.vibrate(VibrationPattern.buttonTap);
+          navigator?.vibrate?.(VibrationPattern.buttonTap);
         }}
         onMouseUp={() => {
           setPressed(false);
@@ -29,7 +29,7 @@ export default function NavButton({
         onMouseLeave={() => setPressed(false)}
         onTouchStart={() => {
           setPressed(true);
-          navigator?.vibrate(VibrationPattern.buttonTap);
+          navigator?.vibrate?.(VibrationPattern.buttonTap);
         }}
         onTouchEnd={() => setPressed(false)}
         variant={"nav"}

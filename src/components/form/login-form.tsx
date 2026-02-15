@@ -28,7 +28,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
   });
 
   const handleSubmit = async (data: LoginFormValues) => {
-    navigator?.vibrate(VibrationPattern.successConfirm);
+    navigator?.vibrate?.(VibrationPattern.successConfirm);
     await onSubmit(data);
   };
 
