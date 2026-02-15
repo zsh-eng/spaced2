@@ -81,7 +81,12 @@ Zip contents:
 - `assets.file`: zip-local file path.
 - `source.file/line*`: used for diagnostics and preview context only.
 
-## Authoring Syntax (LLM-friendly)
+## Authoring Syntax
+
+This section distinguishes what is implemented now (v1) vs a token-efficient
+extension for multi-card generation (vNext).
+
+### Current v1 syntax (implemented)
 
 Card block format:
 
@@ -90,6 +95,7 @@ Q: First line of question
 More question lines...
 A: First line of answer
 More answer lines...
+
 ===
 ```
 
@@ -105,6 +111,12 @@ Rules:
   - `\A:`
   - `\===`
 
+Delimiter formatting recommendation:
+
+- Put a blank line before `===` in authored markdown.
+- This avoids accidental Setext heading rendering in markdown viewers when
+  answer text sits directly above `===`.
+
 Accepted image link forms inside `front`/`back`:
 
 - `![[name.png]]`
@@ -112,6 +124,53 @@ Accepted image link forms inside `front`/`back`:
 - `![](relative/path.png)`
 
 Compiler rewrites these to placeholders (`asset://...`) and records asset mapping in `assets[]`.
+
+### Proposed vNext syntax (token-efficient, multi-card)
+
+Keep basic cards as default (no per-card `TYPE: basic` marker). Use a mode
+marker only for non-default behavior.
+
+Example basic card (still default):
+
+```md
+Q: What is the capital of France?
+A: Paris
+
+===
+```
+
+Example reverse-generation card:
+
+```md
+@reverse
+Q: React hook for local state
+A: useState
+
+===
+```
+
+Example cloze-generation card:
+
+```md
+@cloze
+Q: The {{c1::mitochondria}} is the {{c2::powerhouse}} of the cell.
+A: Optional explanation shown on the answer side.
+
+===
+```
+
+Cloze token syntax (Anki-compatible):
+
+- `{{c1::text}}`
+- `{{c2::text}}`
+- `{{c1::text::hint}}`
+
+Proposed expansion rules:
+
+- One generated card per unique cloze index (`c1`, `c2`, ...).
+- Multiple deletions with the same index appear on the same generated card.
+- `@cloze` can be optional when cloze tokens are detected in `Q:`.
+- `@reverse` generates two cards (`forward`, `reverse`) from one block.
 
 ## Obsidian Vault Discovery (simplified)
 
@@ -234,6 +293,60 @@ Notes:
 - Fingerprint matching is heuristic; identical Q/A pairs are treated as duplicates.
 - This preserves current data model and avoids adding extra required manifest fields.
 - Future optional mode can introduce explicit source-based upsert if needed.
+
+## Source Lineage Metadata (Proposed vNext)
+
+Goal: enable post-import one-shot editing of all cards generated from one source
+note block while preserving per-card review state.
+
+Proposed optional per-card field in `manifest.json`:
+
+```json
+{
+  "front": "Question markdown",
+  "back": "Answer markdown",
+  "assets": [],
+  "source": {
+    "file": "Notes/TL2.md",
+    "lineStart": 42,
+    "lineEnd": 58
+  },
+  "origin": {
+    "noteId": "8f7db17e-4e43-4ac7-b102-3189fdfd07a8",
+    "noteType": "cloze",
+    "variantKey": "c1",
+    "noteRevision": "sha256:77c1f3..."
+  }
+}
+```
+
+Field semantics:
+
+- `origin.noteId`: stable ID for the source note block (shared by all siblings).
+- `origin.noteType`: generation type (`basic`, `reverse`, `cloze`).
+- `origin.variantKey`: stable variant ID within a note (`basic`, `forward`,
+  `reverse`, `c1`, `c2`, ...).
+- `origin.noteRevision`: hash of normalized source block for change detection.
+
+Why this enables one-shot editing:
+
+- Imported cards with the same `origin.noteId` are siblings derived from one
+  source note.
+- Recompile + import can upsert by (`noteId`, `variantKey`) to update existing
+  card content, not create a new card.
+- Scheduler state stays attached to the same card IDs.
+
+Migration path (minimal schema churn):
+
+1. Compiler emits `origin` metadata for all generated cards.
+2. Importer schema accepts optional `origin`; bundles without it remain valid.
+3. App persists card-origin linkage via a new operation type (for sync safety)
+   keyed by `cardId`, without changing FSRS card state schema.
+4. Import adds optional "update existing by origin" mode:
+   - If (`noteId`, `variantKey`) exists, write `cardContent` update.
+   - Else create a new card.
+5. Editor can add "Edit source group" for cards that have `origin`; cards
+   without `origin` keep current per-card edit behavior.
 
 ## Test Plan (Bun test runner, mock vault fixtures)
 
