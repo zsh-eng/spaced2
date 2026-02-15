@@ -7,6 +7,7 @@ import {
   findImageLinks,
   parseFlashcardBlocks,
 } from "../src/lib/import/compiler-core";
+import { replacePlaceholderLinks } from "../src/lib/import/browser";
 import { createZip, readZip } from "../src/lib/import/zip";
 
 const rootDir = process.cwd();
@@ -115,5 +116,38 @@ describe("compiler CLI", () => {
     expect(stderr).toContain("AMBIGUOUS_WIKI_LINK");
 
     await rm(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe("replacePlaceholderLinks", () => {
+  test("does not nest markdown image syntax when replacing placeholders", () => {
+    const card = {
+      front: "Prompt",
+      back: "world\n![Pasted image 20251028151139](asset://img_1)",
+      assets: [
+        {
+          placeholder: "asset://img_1",
+          file: "assets/hash-pasted.png",
+          alt: "Pasted image 20251028151139",
+        },
+      ],
+      source: {
+        file: "note.md",
+        lineStart: 1,
+        lineEnd: 3,
+      },
+    };
+
+    const replacementMap = new Map<string, string>([
+      [
+        "asset://img_1",
+        "![Pasted image 20251028151139](http://localhost:8787/api/files/file-123)",
+      ],
+    ]);
+
+    const content = replacePlaceholderLinks(card, replacementMap);
+    expect(content.back).toBe(
+      "world\n![Pasted image 20251028151139](http://localhost:8787/api/files/file-123)",
+    );
   });
 });

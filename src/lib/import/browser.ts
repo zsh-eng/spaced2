@@ -71,6 +71,32 @@ export function replacePlaceholderLinks(
   card: BundleCard,
   replacementMap: Map<string, string>,
 ) {
+  const escapeRegExp = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const replaceInMarkdown = (
+    markdown: string,
+    placeholder: string,
+    replacement: string,
+  ) => {
+    if (!replacement.startsWith("![")) {
+      return markdown.split(placeholder).join(replacement);
+    }
+
+    // If a replacement is already full markdown image syntax, replace the
+    // whole image token to avoid nested links like ![alt](![alt](url)).
+    const imageTokenPattern = new RegExp(
+      `!\\[[^\\]]*\\]\\(${escapeRegExp(placeholder)}\\)`,
+      "g",
+    );
+    const replacedImageToken = markdown.replace(imageTokenPattern, replacement);
+    if (replacedImageToken !== markdown) {
+      return replacedImageToken;
+    }
+
+    return markdown.split(placeholder).join(replacement);
+  };
+
   let front = card.front;
   let back = card.back;
 
@@ -82,8 +108,8 @@ export function replacePlaceholderLinks(
       );
     }
 
-    front = front.split(asset.placeholder).join(replacement);
-    back = back.split(asset.placeholder).join(replacement);
+    front = replaceInMarkdown(front, asset.placeholder, replacement);
+    back = replaceInMarkdown(back, asset.placeholder, replacement);
   }
 
   return { front, back };
