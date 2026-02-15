@@ -83,12 +83,9 @@ Zip contents:
 
 ## Authoring Syntax
 
-This section distinguishes what is implemented now (v1) vs a token-efficient
-extension for multi-card generation (vNext).
+Use a minimal syntax optimized for LLM generation and quick Obsidian edits.
 
-### Current v1 syntax (implemented)
-
-Card block format:
+Default card block:
 
 ```md
 Q: First line of question
@@ -104,18 +101,23 @@ Rules:
 - `Q:` starts the question block.
 - First top-level `A:` after `Q:` starts the answer block.
 - `===` ends the card block.
+- Put a blank line before `===` to avoid Setext heading rendering.
 - Everything between markers is preserved verbatim (including newlines).
 - Markers must start at column 1 (no leading spaces).
-- Escape literal markers with backslash:
-  - `\Q:`
-  - `\A:`
-  - `\===`
+- Escape literal markers with backslash: `\Q:`, `\A:`, `\===`.
 
-Delimiter formatting recommendation:
+Optional mode markers (only when needed):
 
-- Put a blank line before `===` in authored markdown.
-- This avoids accidental Setext heading rendering in markdown viewers when
-  answer text sits directly above `===`.
+- `@reverse` on its own line before `Q:` to generate forward + reverse cards.
+- Cloze cards use Anki-style cloze tokens in `Q:`:
+  - `{{c1::text}}`
+  - `{{c2::text}}`
+  - `{{c1::text::hint}}`
+
+Cloze expansion rules:
+
+- One generated card per unique cloze index (`c1`, `c2`, ...).
+- Multiple deletions with the same index appear on the same generated card.
 
 Accepted image link forms inside `front`/`back`:
 
@@ -125,52 +127,39 @@ Accepted image link forms inside `front`/`back`:
 
 Compiler rewrites these to placeholders (`asset://...`) and records asset mapping in `assets[]`.
 
-### Proposed vNext syntax (token-efficient, multi-card)
-
-Keep basic cards as default (no per-card `TYPE: basic` marker). Use a mode
-marker only for non-default behavior.
-
-Example basic card (still default):
+Example authoring patterns:
 
 ```md
-Q: What is the capital of France?
+Q: What is Newton's second law?
+A: F = ma
+
+===
+
+Q: Use escaped markers literally: \Q: \A: \===
+A: Escaped marker text is treated as plain content.
+
+===
+
+@reverse
+Q: Capital of France
 A: Paris
 
 ===
-```
 
-Example reverse-generation card:
+Q: The powerhouse of the cell is {{c1::mitochondria}}.
+The process is {{c2::cellular respiration::energy pathway}}.
+A: Review cloze deletions by index.
 
-```md
-@reverse
-Q: React hook for local state
-A: useState
+===
+
+Q: Identify this structure:
+![[diagram.png]]
+A: Same card with alternative markdown image links:
+![[assets/diagram.png]]
+![](images/diagram.png)
 
 ===
 ```
-
-Example cloze-generation card:
-
-```md
-@cloze
-Q: The {{c1::mitochondria}} is the {{c2::powerhouse}} of the cell.
-A: Optional explanation shown on the answer side.
-
-===
-```
-
-Cloze token syntax (Anki-compatible):
-
-- `{{c1::text}}`
-- `{{c2::text}}`
-- `{{c1::text::hint}}`
-
-Proposed expansion rules:
-
-- One generated card per unique cloze index (`c1`, `c2`, ...).
-- Multiple deletions with the same index appear on the same generated card.
-- `@cloze` can be optional when cloze tokens are detected in `Q:`.
-- `@reverse` generates two cards (`forward`, `reverse`) from one block.
 
 ## Obsidian Vault Discovery (simplified)
 
@@ -294,27 +283,25 @@ Notes:
 - This preserves current data model and avoids adding extra required manifest fields.
 - Future optional mode can introduce explicit source-based upsert if needed.
 
-## Source Lineage Metadata (Proposed vNext)
+## Import Modes For Reused Temp File (Proposed vNext)
 
-Goal: enable post-import one-shot editing of all cards generated from one source
-note block while preserving per-card review state.
+Primary workflow: generate cards, paste/edit in a reusable Obsidian temp file,
+compile, import.
 
-Proposed optional per-card field in `manifest.json`:
+Use two import modes:
+
+- `create new` (default): every compile/import is treated as new content.
+- `linked upsert` (optional): for post-import corrections, update existing cards
+  by source lineage instead of creating duplicates.
+
+Lineage metadata (optional per card):
 
 ```json
 {
-  "front": "Question markdown",
-  "back": "Answer markdown",
-  "assets": [],
-  "source": {
-    "file": "Notes/TL2.md",
-    "lineStart": 42,
-    "lineEnd": 58
-  },
   "origin": {
     "noteId": "8f7db17e-4e43-4ac7-b102-3189fdfd07a8",
-    "noteType": "cloze",
-    "variantKey": "c1",
+    "noteType": "basic",
+    "variantKey": "basic",
     "noteRevision": "sha256:77c1f3..."
   }
 }
@@ -322,31 +309,24 @@ Proposed optional per-card field in `manifest.json`:
 
 Field semantics:
 
-- `origin.noteId`: stable ID for the source note block (shared by all siblings).
-- `origin.noteType`: generation type (`basic`, `reverse`, `cloze`).
-- `origin.variantKey`: stable variant ID within a note (`basic`, `forward`,
-  `reverse`, `c1`, `c2`, ...).
-- `origin.noteRevision`: hash of normalized source block for change detection.
+- `origin.noteId`: stable ID for one source block (shared by sibling variants).
+- `origin.noteType`: `basic`, `reverse`, or `cloze`.
+- `origin.variantKey`: `basic`, `forward`, `reverse`, `c1`, `c2`, ...
+- `origin.noteRevision`: hash for change detection.
 
-Why this enables one-shot editing:
+Upsert key:
 
-- Imported cards with the same `origin.noteId` are siblings derived from one
-  source note.
-- Recompile + import can upsert by (`noteId`, `variantKey`) to update existing
-  card content, not create a new card.
-- Scheduler state stays attached to the same card IDs.
+- (`origin.noteId`, `origin.variantKey`)
 
-Migration path (minimal schema churn):
+Behavior:
 
-1. Compiler emits `origin` metadata for all generated cards.
-2. Importer schema accepts optional `origin`; bundles without it remain valid.
-3. App persists card-origin linkage via a new operation type (for sync safety)
-   keyed by `cardId`, without changing FSRS card state schema.
-4. Import adds optional "update existing by origin" mode:
-   - If (`noteId`, `variantKey`) exists, write `cardContent` update.
-   - Else create a new card.
-5. Editor can add "Edit source group" for cards that have `origin`; cards
-   without `origin` keep current per-card edit behavior.
+- If key exists and mode is `linked upsert`, write `cardContent` update.
+- Else create a new card.
+
+Stable ID guidance:
+
+- `noteId` must be minted once and persisted; it should not be recomputed from
+  card text.
 
 ## Test Plan (Bun test runner, mock vault fixtures)
 
