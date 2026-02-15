@@ -13,9 +13,16 @@ import { toast } from "sonner";
 
 export async function handleCardDelete(reviewCard?: CardWithMetadata) {
   if (!reviewCard) return;
+  const previousDeleted = reviewCard.deleted;
   await updateDeletedClientSide(reviewCard.id, true);
   toast("Card deleted", {
     icon: <Trash className="size-4" />,
+    action: {
+      label: "Undo",
+      onClick: () => {
+        void updateDeletedClientSide(reviewCard.id, previousDeleted);
+      },
+    },
   });
 }
 
@@ -31,10 +38,17 @@ export async function handleCardSuspend(reviewCard?: CardWithMetadata) {
 
 export async function handleCardBury(reviewCard?: CardWithMetadata) {
   if (!reviewCard) return;
+  const previousSuspended = reviewCard.suspended ?? new Date(0);
   await updateSuspendedClientSide(reviewCard.id, MAX_DATE);
   navigator?.vibrate?.(VibrationPattern.buttonTap);
   toast("You won't see this card again", {
     icon: <EyeOff className="size-4" />,
+    action: {
+      label: "Undo",
+      onClick: () => {
+        void updateSuspendedClientSide(reviewCard.id, previousSuspended);
+      },
+    },
   });
 }
 
