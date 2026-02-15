@@ -9,6 +9,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CardContentFormValues } from "@/lib/form-schema";
+import {
+  handleCardBury,
+  handleCardDelete,
+  handleCardSave,
+} from "@/lib/review/actions";
 import { updateCardContentOperation } from "@/lib/sync/operation";
 import { CardWithMetadata } from "@/lib/types";
 import { useState } from "react";
@@ -40,6 +45,18 @@ const FlashcardTable = ({ cards }: { cards: CardWithMetadata[] }) => {
           onEdit={handleEdit}
           open={open}
           onOpenChange={setOpen}
+          actions={{
+            bookmarked: selectedCard.bookmarked,
+            onBookmark: (bookmarked) => handleCardSave(bookmarked, selectedCard),
+            onDelete: () => {
+              handleCardDelete(selectedCard);
+              setOpen(false);
+            },
+            onBury: () => {
+              handleCardBury(selectedCard);
+              setOpen(false);
+            },
+          }}
         />
       )}
       <Table>

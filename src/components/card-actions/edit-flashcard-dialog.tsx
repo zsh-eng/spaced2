@@ -1,3 +1,5 @@
+import EditFlashcardFooterActions from "@/components/card-actions/edit-flashcard-footer-actions";
+import { type EditFlashcardActions } from "@/components/card-actions/edit-flashcard-responsive";
 import { CreateUpdateFlashcardForm } from "@/components/create-flashcard";
 import {
   Dialog,
@@ -13,6 +15,7 @@ type EditFlashcardDialogProps = {
   card: CardWithMetadata;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  actions?: EditFlashcardActions;
 };
 
 export default function EditFlashcardDialog({
@@ -20,10 +23,11 @@ export default function EditFlashcardDialog({
   open,
   onOpenChange,
   onEdit,
+  actions,
 }: EditFlashcardDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-2 pt-6">
+      <DialogContent className="p-2 pt-6 gap-0">
         <DialogHeader className="text-center">
           <DialogTitle className="text-center text-lg">
             Edit Flashcard
@@ -35,6 +39,13 @@ export default function EditFlashcardDialog({
           initialFront={card.front}
           initialBack={card.back}
         />
+
+        {actions && (
+          <EditFlashcardFooterActions
+            actions={actions}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

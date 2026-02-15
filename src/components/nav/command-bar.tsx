@@ -192,6 +192,12 @@ export default function CommandBar() {
           open={isEditing}
           onOpenChange={setIsEditing}
           onEdit={handleEdit}
+          actions={{
+            bookmarked: nextReviewCard.bookmarked,
+            onBookmark: handleSave,
+            onDelete: handleDelete,
+            onBury: handleBury,
+          }}
         />
       )}
 

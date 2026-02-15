@@ -88,6 +88,12 @@ export default function ReviewRoute() {
           open={isEditing}
           onOpenChange={setIsEditing}
           onEdit={handleEdit}
+          actions={{
+            bookmarked: nextReviewCard.bookmarked,
+            onBookmark: handleSave,
+            onDelete: handleDelete,
+            onBury: handleBury,
+          }}
         />
       )}
       <DesktopActionsContextMenu

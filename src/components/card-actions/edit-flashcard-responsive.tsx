@@ -4,11 +4,19 @@ import { CardContentFormValues } from "@/lib/form-schema";
 import { CardWithMetadata } from "@/lib/types";
 import { useMediaQuery } from "@uidotdev/usehooks";
 
+export type EditFlashcardActions = {
+  bookmarked: boolean;
+  onBookmark: (bookmarked: boolean) => void;
+  onDelete: () => void;
+  onBury: () => void;
+};
+
 type EditFlashcardResponsiveProps = {
   card: CardWithMetadata;
   onEdit: (values: CardContentFormValues) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  actions?: EditFlashcardActions;
 };
 
 export default function EditFlashcardResponsive({
@@ -16,6 +24,7 @@ export default function EditFlashcardResponsive({
   onEdit,
   open,
   onOpenChange,
+  actions,
 }: EditFlashcardResponsiveProps) {
   const isMobile = useMediaQuery("(max-width: 640px)");
 
@@ -25,6 +34,7 @@ export default function EditFlashcardResponsive({
       open={open}
       onOpenChange={onOpenChange}
       onEdit={onEdit}
+      actions={actions}
     />
   ) : (
     <EditFlashcardDialog
@@ -32,6 +42,7 @@ export default function EditFlashcardResponsive({
       open={open}
       onOpenChange={onOpenChange}
       onEdit={onEdit}
+      actions={actions}
     />
   );
 }

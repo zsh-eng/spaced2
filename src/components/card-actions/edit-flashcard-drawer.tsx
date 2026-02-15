@@ -1,3 +1,5 @@
+import EditFlashcardFooterActions from "@/components/card-actions/edit-flashcard-footer-actions";
+import { type EditFlashcardActions } from "@/components/card-actions/edit-flashcard-responsive";
 import { CreateUpdateFlashcardForm } from "@/components/create-flashcard";
 import {
   Drawer,
@@ -13,6 +15,7 @@ type EditFlashcardDrawerProps = {
   card: CardWithMetadata;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  actions?: EditFlashcardActions;
 };
 
 export default function EditFlashcardDrawer({
@@ -20,6 +23,7 @@ export default function EditFlashcardDrawer({
   open,
   onOpenChange,
   onEdit,
+  actions,
 }: EditFlashcardDrawerProps) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -33,6 +37,13 @@ export default function EditFlashcardDrawer({
           initialFront={card.front}
           initialBack={card.back}
         />
+
+        {actions && (
+          <EditFlashcardFooterActions
+            actions={actions}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
       </DrawerContent>
     </Drawer>
   );
