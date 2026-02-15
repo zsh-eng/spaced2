@@ -51,7 +51,7 @@ export default function App() {
               description: "text-xs",
               icon: "size-4",
               actionButton:
-                "text-xs font-semibold px-3 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer active:scale-95 transition-all",
+                "ml-auto shrink-0 text-xs font-semibold px-3 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer active:scale-95 transition-all",
             },
           }}
         />
