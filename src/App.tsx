@@ -18,6 +18,7 @@ import ProfileRoute from "@/routes/ProfileRoute";
 import ReviewRoute from "@/routes/Review.tsx";
 import SavedRoute from "@/routes/SavedRoute";
 import StatsRoute from "@/routes/StatsRoute";
+import SuspendedCardsRoute from "@/routes/SuspendedCardsRoute";
 import { useMediaQuery } from "@uidotdev/usehooks";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router";
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/" element={<ReviewRoute />} />
             <Route path="/decks" element={<DecksRoute />} />
             <Route path="/decks/_all" element={<AllCardsRoute />} />
+            <Route path="/decks/_suspended" element={<SuspendedCardsRoute />} />
             <Route path="/decks/:deckId" element={<DeckRoute />} />
             <Route path="/saved" element={<SavedRoute />} />
             {/* <Route path='/debug' element={<DebugRoute />} /> */}

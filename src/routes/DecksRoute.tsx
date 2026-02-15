@@ -1,5 +1,6 @@
 import AllDecksCardContainer from "@/components/deck/all-decks-card-container";
 import DeckCardContainer from "@/components/deck/deck-card-container";
+import SuspendedDecksCardContainer from "@/components/deck/suspended-decks-card-container";
 import { useDecks } from "@/components/hooks/query";
 import ReturnToTop from "@/components/return-to-top";
 import SearchBar from "@/components/search-bar";
@@ -37,6 +38,7 @@ export default function DecksRoute() {
         )}
       >
         <AllDecksCardContainer />
+        <SuspendedDecksCardContainer />
         {filteredDecks.map((deck) => (
           <DeckCardContainer key={deck.id} id={deck.id} />
         ))}
