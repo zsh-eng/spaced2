@@ -9,6 +9,8 @@ export type EditFlashcardActions = {
   onBookmark: (bookmarked: boolean) => void;
   onDelete: () => void;
   onBury: () => void;
+  suspended?: Date;
+  onUnsuspend?: () => void;
 };
 
 type EditFlashcardResponsiveProps = {

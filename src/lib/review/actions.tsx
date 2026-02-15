@@ -8,7 +8,7 @@ import {
 import { CardWithMetadata } from "@/lib/types";
 import { MAX_DATE } from "@/lib/utils";
 import VibrationPattern from "@/lib/vibrate";
-import { BookmarkIcon, ChevronsRight, EyeOff, Trash } from "lucide-react";
+import { BookmarkIcon, ChevronsRight, Eye, EyeOff, Trash } from "lucide-react";
 import { toast } from "sonner";
 
 export async function handleCardDelete(reviewCard?: CardWithMetadata) {
@@ -35,6 +35,14 @@ export async function handleCardBury(reviewCard?: CardWithMetadata) {
   navigator?.vibrate(VibrationPattern.buttonTap);
   toast("You won't see this card again", {
     icon: <EyeOff className="size-4" />,
+  });
+}
+
+export async function handleCardUnsuspend(reviewCard?: CardWithMetadata) {
+  if (!reviewCard) return;
+  await updateSuspendedClientSide(reviewCard.id, new Date(0));
+  toast("Card unsuspended", {
+    icon: <Eye className="size-4" />,
   });
 }
 

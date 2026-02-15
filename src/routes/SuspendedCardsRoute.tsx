@@ -32,7 +32,7 @@ export default function SuspendedCardsRoute() {
         </h1>
       </div>
       <Separator className="my-4" />
-      <CardsTable cards={filteredCards} />
+      <CardsTable cards={filteredCards} showSuspendedColumn />
     </div>
   );
 }
