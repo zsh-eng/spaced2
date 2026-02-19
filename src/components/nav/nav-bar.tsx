@@ -41,7 +41,7 @@ export default function NavBar() {
   return (
     <div
       className={cn(
-        "fixed bottom-[env(safe-area-inset-bottom)] full flex z-10 bg-muted dark:bg-background w-full pb-[env(safe-area-inset-bottom)]",
+        "fixed bottom-0 full flex z-10 bg-muted dark:bg-background w-full pb-[env(safe-area-inset-bottom)]",
         "md:left-4 md:h-full md:flex-col md:justify-center md:w-16 md:pb-0 -mx-2",
       )}
     >
